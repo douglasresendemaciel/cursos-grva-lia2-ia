@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconhecimento de Dígitos com NN</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+        }
+        .canvas-container, .nn-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        h1, h2 {
+            margin-top: 0;
+            color: #ffffff;
+            font-weight: 300;
+            text-align: center;
+        }
+        #drawingCanvas {
+            background-color: white;
+            border: 2px solid #444;
+            border-radius: 8px;
+            cursor: crosshair;
+            touch-action: none; /* Desabilita scroll em touch devices */
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        #btnClear {
+            background-color: #6c757d;
+        }
+        #btnClear:hover {
+            background-color: #5a6268;
+        }
+        #predictionResult {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+            height: 30px; /* Garante espaço mesmo quando vazio */
+        }
+        #nnCanvas {
+            background-color: #282c34;
+            border-radius: 8px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none; /* Escondido por padrão */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Reconhecimento de Dígitos com TensorFlow.js</h1>
+
+    <div class="container">
+        <div class="canvas-container">
+            <h2>Desenhe um número de 0 a 9</h2>
+            <canvas id="drawingCanvas" width="500" height="500"></canvas>
+            <div class="controls">
+                <button id="btnPredict">Prever</button>
+                <button id="btnClear">Limpar</button>
+            </div>
+            <div id="predictionResult"></div>
+            <div id="loadingSpinner" class="loading-spinner"></div>
+        </div>
+
+        <div class="nn-container">
+            <h2>Visualização da Rede Neural</h2>
+            <canvas id="nnCanvas" width="500" height="500"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- Lógica do Canvas de Desenho ---
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+
+        // Configurações iniciais do canvas
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 25;
+        ctx.lineCap = 'round';
+
+        function getPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            // Suporte para mouse e toque
+            const clientX = event.clientX || event.touches[0].clientX;
+            const clientY = event.clientY || event.touches[0].clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const { x, y } = getPosition(e);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const { x, y } = getPosition(e);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // Event Listeners para Mouse
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Event Listeners para Touch
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // --- Lógica dos Botões ---
+        const btnClear = document.getElementById('btnClear');
+        const btnPredict = document.getElementById('btnPredict');
+        const predictionResultEl = document.getElementById('predictionResult');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+
+        btnClear.addEventListener('click', () => {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            predictionResultEl.textContent = '';
+            // Limpa também a visualização da rede neural
+            nnCtx.clearRect(0, 0, nnCanvas.width, nnCanvas.height);
+        });
+
+        btnPredict.addEventListener('click', async () => {
+            predictionResultEl.textContent = '';
+            loadingSpinner.style.display = 'block';
+
+            const imageData = canvas.toDataURL('image/png');
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro na requisição: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                predictionResultEl.textContent = `Predição: ${result.prediction}`;
+                drawNeuralNetwork(result.activations);
+
+            } catch (error) {
+                console.error("Erro ao prever:", error);
+                predictionResultEl.textContent = 'Erro ao prever.';
+                predictionResultEl.style.color = '#dc3545';
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        });
+
+
+        // --- Lógica da Visualização da Rede Neural ---
+        const nnCanvas = document.getElementById('nnCanvas');
+        const nnCtx = nnCanvas.getContext('2d');
+        const neuronRadius = 6;
+
+        function drawNeuralNetwork(activations) {
+            nnCtx.clearRect(0, 0, nnCanvas.width, nnCanvas.height);
+
+            const layerConfigs = [
+                { name: 'Input', text: 'Entrada (28x28)', count: 20, activations: null },
+                { name: 'hidden_layer_1', text: 'Oculta 1 (128)', count: activations.hidden_layer_1.length, activations: activations.hidden_layer_1 },
+                { name: 'hidden_layer_2', text: 'Oculta 2 (64)', count: activations.hidden_layer_2.length, activations: activations.hidden_layer_2 },
+                { name: 'output_layer', text: 'Saída (10)', count: activations.output_layer.length, activations: activations.output_layer }
+            ];
+
+            const layerGap = nnCanvas.width / layerConfigs.length;
+            const layerPositions = [];
+
+            // Desenha as conexões primeiro
+            nnCtx.strokeStyle = 'rgba(100, 100, 100, 0.1)';
+            for (let i = 0; i < layerConfigs.length -1; i++) {
+                const currentLayerX = layerGap * (i + 0.5);
+                const nextLayerX = layerGap * (i + 1.5);
+
+                const currentLayerYPositions = calculateNeuronYPositions(layerConfigs[i].count, nnCanvas.height);
+                const nextLayerYPositions = calculateNeuronYPositions(layerConfigs[i+1].count, nnCanvas.height);
+
+                for(const y1 of currentLayerYPositions) {
+                    for(const y2 of nextLayerYPositions) {
+                        nnCtx.beginPath();
+                        nnCtx.moveTo(currentLayerX, y1);
+                        nnCtx.lineTo(nextLayerX, y2);
+                        nnCtx.stroke();
+                    }
+                }
+            }
+
+
+            // Desenha os neurônios e os textos
+            layerConfigs.forEach((layer, i) => {
+                const x = layerGap * (i + 0.5);
+                const yPositions = calculateNeuronYPositions(layer.count, nnCanvas.height);
+                layerPositions.push({ x, yPositions });
+
+                // Desenha o texto da camada
+                nnCtx.fillStyle = '#e0e0e0';
+                nnCtx.textAlign = 'center';
+                nnCtx.font = '14px Arial';
+                nnCtx.fillText(layer.text, x, 20);
+
+                // Desenha os neurônios
+                yPositions.forEach((y, j) => {
+                    nnCtx.beginPath();
+                    nnCtx.arc(x, y, neuronRadius, 0, 2 * Math.PI);
+
+                    let activation = 0.2; // Cor base para a camada de entrada
+                    if (layer.activations) {
+                        activation = layer.activations[j];
+                    }
+
+                    // A cor azul indica ativação positiva
+                    nnCtx.fillStyle = `rgba(50, 150, 255, ${Math.max(0.1, activation)})`;
+                    nnCtx.fill();
+
+                    // Adiciona uma borda sutil
+                    nnCtx.strokeStyle = `rgba(100, 200, 255, ${Math.max(0.2, activation)})`;
+                    nnCtx.lineWidth = 1;
+                    nnCtx.stroke();
+                });
+            });
+        }
+
+        function calculateNeuronYPositions(count, canvasHeight) {
+            // Se a camada for muito densa, limita a quantidade de neurônios desenhados para não poluir
+            const maxNeuronsToDraw = 40;
+            const drawCount = Math.min(count, maxNeuronsToDraw);
+
+            const positions = [];
+            const verticalMargin = 60;
+            const usableHeight = canvasHeight - verticalMargin * 2;
+            const yGap = drawCount > 1 ? usableHeight / (drawCount - 1) : usableHeight / 2;
+
+            for(let i=0; i<drawCount; i++) {
+                positions.push(verticalMargin + i * yGap);
+            }
+            return positions;
+        }
+
+        // Desenha uma rede vazia ao carregar a página
+        drawNeuralNetwork({
+            hidden_layer_1: new Array(128).fill(0),
+            hidden_layer_2: new Array(64).fill(0),
+            output_layer: new Array(10).fill(0)
+        });
+
+    </script>
+</body>
+</html>
