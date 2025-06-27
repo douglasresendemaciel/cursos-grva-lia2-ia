@@ -1,0 +1,4 @@
+.venv
+.idea
+dataset/mnist_train.csv
+dataset/mnist_test.csv
