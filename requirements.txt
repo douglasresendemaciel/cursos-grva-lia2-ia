@@ -26,6 +26,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.2.1
 jeepney==0.9.0
 Jinja2==3.1.6
+joblib==1.5.1
 keras==3.10.0
 keyring==25.6.0
 kiwisolver==1.4.8
@@ -58,6 +59,8 @@ requests==2.32.4
 requests-toolbelt==1.0.0
 rfc3986==2.0.0
 rich==14.0.0
+scikit-learn==1.7.0
+scipy==1.15.3
 SecretStorage==3.3.3
 SimpleWebSocketServer==0.1.2
 six==1.17.0
@@ -66,6 +69,7 @@ tensorboard-data-server==0.7.2
 tensorflow==2.19.0
 tensorflow-io-gcs-filesystem==0.37.1
 termcolor==3.1.0
+threadpoolctl==3.6.0
 twine==6.1.0
 typing==3.7.4.3
 typing_extensions==4.14.0
