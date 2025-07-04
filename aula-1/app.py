@@ -217,7 +217,7 @@ def run_server():
     """
     load_keras_model()
     print("Starting Flask server at http://127.0.0.1:5000")
-    app.run(debug=True, use_reloader=False)
+    app.run(app.run(port=5000, host='0.0.0.0', debug=True, threaded=True))
 
 
 if __name__ == '__main__':

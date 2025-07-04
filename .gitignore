@@ -1,5 +1,7 @@
 .venv
 .idea
 __pycache__/
-dataset/mnist_train.csv
-dataset/mnist_test.csv
+aula-1/dataset/mnist_train.csv
+aula-1/dataset/mnist_test.csv
+aula-1/__pycache__
+aula-2/__pycache__

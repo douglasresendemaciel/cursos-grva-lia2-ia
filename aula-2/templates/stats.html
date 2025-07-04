@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Estatística para Redes Neurais</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') if 'style.css' in list_files_in_static else 'about:blank' }}">
+    <style>
+        /* Copiando alguns estilos básicos do index.html para funcionar sem um CSS externo */
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px 40px; line-height: 1.6; }
+        h1, h2 { color: #007BFF; border-bottom: 2px solid #007BFF; padding-bottom: 5px; }
+        .box { background: #fff; padding: 15px 20px; margin-bottom: 20px; border: 1px solid #e0e0e0; border-left: 5px solid #007BFF; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .main-content { display: flex; gap: 40px; align-items: flex-start; }
+        .controls { flex: 1; }
+        .visualization { flex: 2; }
+        input[type="range"] { width: 100%; }
+        label { font-weight: bold; }
+        button { background-color: #007BFF; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .results-box { background: #f9f9f9; padding: 15px; border-radius: 5px; text-align: center; }
+        .results-box h3 { border: none; margin-top: 0; }
+        .results-box p { font-size: 1.5rem; font-weight: bold; color: #333; margin: 0; }
+    </style>
+</head>
+<body>
+
+    <h1>📊 Média, Variância e Inicialização de Pesos</h1>
+
+    <div class="box">
+        <p>A forma como os pesos de uma rede são inicializados é crucial. Geralmente, usamos uma <strong>distribuição normal</strong> com <strong>média (μ) zero</strong> e uma <strong>variância (σ²) pequena e controlada</strong>. Explore como esses parâmetros afetam a distribuição dos pesos.</p>
+    </div>
+
+    <div class="main-content">
+        <div class="controls box">
+            <h2>Parâmetros da Distribuição</h2>
+            <form method="POST">
+                <div>
+                    <label for="num_weights">Número de Pesos: <span id="num_weights_val">{{ num_weights }}</span></label>
+                    <input type="range" id="num_weights" name="num_weights" min="10" max="2000" value="{{ num_weights }}" oninput="document.getElementById('num_weights_val').textContent = this.value">
+                </div>
+                <br>
+                <div>
+                    <label for="mean_param">Média (μ): <span id="mean_param_val">{{ mean_param }}</span></label>
+                    <input type="range" id="mean_param" name="mean_param" min="-2" max="2" step="0.1" value="{{ mean_param }}" oninput="document.getElementById('mean_param_val').textContent = this.value">
+                </div>
+                <br>
+                <div>
+                    <label for="std_dev_param">Desvio Padrão (σ): <span id="std_dev_param_val">{{ std_dev_param }}</span></label>
+                    <input type="range" id="std_dev_param" name="std_dev_param" min="0.1" max="3" step="0.1" value="{{ std_dev_param }}" oninput="document.getElementById('std_dev_param_val').textContent = this.value">
+                </div>
+                <br>
+                <button type="submit">Gerar e Visualizar</button>
+            </form>
+        </div>
+
+        <div class="visualization box">
+            <h2>Resultados</h2>
+            <div class="results-grid">
+                <div class="results-box">
+                    <h3>Média Amostral</h3>
+                    <p>{{ "%.4f"|format(sample_mean) }}</p>
+                </div>
+                <div class="results-box">
+                    <h3>Variância Amostral</h3>
+                    <p>{{ "%.4f"|format(sample_variance) }}</p>
+                </div>
+            </div>
+            <div id="histogram-plot"></div>
+        </div>
+    </div>
+
+    <hr style="margin-top: 40px; margin-bottom: 40px;">
+
+    <h1>💡 A Distribuição Normal em Ação nas Ativações</h1>
+
+    <div class="box">
+        <p>A entrada linear de um neurônio (z) é a soma ponderada de múltiplas entradas. Pelo <strong>Teorema do Limite Central</strong>, mesmo que as entradas não sigam uma distribuição normal, a distribuição de 'z' tenderá a uma <strong>curva de sino</strong>. Veja abaixo como isso acontece e como a função de ativação <strong>ReLU</strong> (Rectified Linear Unit) transforma essa distribuição.</p>
+    </div>
+
+    <div class="main-content">
+        <div class="visualization box" style="flex: 1;">
+            <h2>Distribuição das Pré-Ativações (z)</h2>
+            <p>Observe a formação da curva de sino.</p>
+            <div id="pre-activation-plot"></div>
+        </div>
+        <div class="visualization box" style="flex: 1;">
+            <h2>Distribuição das Ativações (a = ReLU(z))</h2>
+            <p>A ReLU zera todos os valores negativos, "cortando" a cauda esquerda da distribuição.</p>
+            <div id="activation-plot"></div>
+        </div>
+    </div>
+
+
+    <hr style="margin-top: 40px; margin-bottom: 40px;">
+
+    <h1>🧠 Teorema de Bayes e Classificação</h1>
+
+    <div class="box">
+        <p>O Teorema de Bayes é uma fórmula para atualizar nossas crenças à luz de novas evidências. Ele é a base do raciocínio probabilístico e de áreas avançadas como as Redes Neurais Bayesianas.</p>
+        <p>A intuição é: <strong>Crença Final (Posterior) = Força da Evidência (Likelihood) × Crença Inicial (Prior)</strong></p>
+        <ul>
+            <li><strong>Prior P(A):</strong> A probabilidade de algo ser verdade ANTES de qualquer evidência. Ex: A prevalência de uma doença na população.</li>
+            <li><strong>Likelihood P(B|A):</strong> A probabilidade da evidência ocorrer, DADO que nossa hipótese é verdadeira. <strong>A saída de uma rede neural é uma forma de Likelihood.</strong></li>
+            <li><strong>Posterior P(A|B):</strong> A probabilidade da nossa hipótese ser verdadeira, DEPOIS de considerar a evidência. É o resultado que realmente nos interessa.</li>
+        </ul>
+    </div>
+
+    <div class="box">
+        <h2>🧪 Calculadora Bayesiana Interativa: Cenário de Diagnóstico Médico</h2>
+        <p>Imagine um exame (criado com uma Rede Neural) para uma doença rara. Mexa nos sliders e veja como a probabilidade real muda drasticamente.</p>
+
+        <div class="main-content">
+            <div class="controls" style="flex: 1.5;">
+                <h4>1. Defina a Crença Inicial (Prior)</h4>
+                <label for="prior">Prevalência da Doença na População: <strong id="prior_val">1%</strong></label>
+                <input type="range" id="prior" min="0.1" max="50" step="0.1" value="1">
+
+                <h4 style="margin-top: 20px;">2. Defina a Acurácia do Exame (Likelihoods)</h4>
+                <label for="sensitivity">Sensibilidade (P(Teste `+` | Doente)): <strong id="sensitivity_val">99%</strong></label>
+                <input type="range" id="sensitivity" min="50" max="100" step="1" value="99">
+                <small><i>A capacidade do teste de detectar a doença corretamente.</i></small>
+                <br><br>
+                <label for="fpr">Taxa de Falsos Positivos (P(Teste `+` | Não Doente)): <strong id="fpr_val">5%</strong></label>
+                <input type="range" id="fpr" min="1" max="50" step="1" value="5">
+                <small><i>A chance do teste errar e dar positivo em uma pessoa saudável.</i></small>
+            </div>
+
+            <div class="visualization" style="flex: 1; text-align: center; background: #f0f8ff; padding: 20px; border-radius: 10px;">
+                <h3>Resultado Final (Posterior)</h3>
+                <p style="margin-top: 10px;">Dado que um paciente aleatório testou <strong>POSITIVO</strong>...</p>
+                <p style="font-size: 1.2em;">A probabilidade real dele estar doente é de:</p>
+                <p id="posterior_result" style="font-size: 3.5rem; color: #d9534f; font-weight: bold; margin-top: 10px;">16.8%</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        // Pega os dados dos pesos gerados pelo Flask
+        const weightsData = {{ weights_data | tojson }};
+
+        // Cria o traço do histograma para o Plotly
+        const trace = {
+            x: weightsData,
+            type: 'histogram',
+            marker: {
+                color: 'rgba(0, 123, 255, 0.7)',
+                line: {
+                    color: 'rgba(0, 123, 255, 1)',
+                    width: 1
+                }
+            },
+            // Mostra a contagem normalizada para parecer uma distribuição de probabilidade
+            histnorm: 'probability density'
+        };
+
+        const layout = {
+            title: 'Distribuição dos Pesos Gerados',
+            xaxis: { title: 'Valor do Peso' },
+            yaxis: { title: 'Densidade de Probabilidade' },
+            bargap: 0.05
+        };
+
+        // Desenha o gráfico na div 'histogram-plot'
+        Plotly.newPlot('histogram-plot', [trace], layout);
+
+    // Pega os novos dados gerados pelo Flask
+        const preActivationsData = {{ pre_activations_data | tojson }};
+        const activationsData = {{ activations_data | tojson }};
+
+        // Cria o gráfico para as pré-ativações (z)
+        const trace_z = {
+            x: preActivationsData,
+            type: 'histogram',
+            marker: { color: 'rgba(44, 160, 44, 0.7)' }, // Verde
+            histnorm: 'probability density'
+        };
+        const layout_z = {
+            title: 'Distribuição de Z (Pré-Ativação)',
+            xaxis: { title: 'Valor de Z' },
+            yaxis: { title: 'Densidade' }
+        };
+        Plotly.newPlot('pre-activation-plot', [trace_z], layout_z);
+
+
+        // Cria o gráfico para as ativações (a)
+        const trace_a = {
+            x: activationsData,
+            type: 'histogram',
+            marker: { color: 'rgba(214, 39, 40, 0.7)' }, // Vermelho
+            histnorm: 'probability density'
+        };
+        const layout_a = {
+            title: 'Distribuição de A (Pós-ReLU)',
+            xaxis: { title: 'Valor de A' },
+            yaxis: { title: 'Densidade' }
+        };
+        Plotly.newPlot('activation-plot', [trace_a], layout_a);
+
+        // Pega os elementos do HTML
+        const priorSlider = document.getElementById('prior');
+        const sensitivitySlider = document.getElementById('sensitivity');
+        const fprSlider = document.getElementById('fpr');
+
+        const priorValEl = document.getElementById('prior_val');
+        const sensitivityValEl = document.getElementById('sensitivity_val');
+        const fprValEl = document.getElementById('fpr_val');
+        const posteriorResultEl = document.getElementById('posterior_result');
+
+        function updateBayesCalculation() {
+            // 1. Lê os valores atuais dos sliders e converte para probabilidades (0 a 1)
+            const p_doente = parseFloat(priorSlider.value) / 100; // Prior
+            const p_teste_pos_dado_doente = parseFloat(sensitivitySlider.value) / 100; // Likelihood (Sensibilidade)
+            const p_teste_pos_dado_nao_doente = parseFloat(fprSlider.value) / 100; // Likelihood (Falso Positivo)
+
+            // Atualiza os textos dos labels
+            priorValEl.textContent = `${priorSlider.value}%`;
+            sensitivityValEl.textContent = `${sensitivitySlider.value}%`;
+            fprValEl.textContent = `${fprSlider.value}%`;
+
+            // 2. Calcula os outros termos necessários para a fórmula de Bayes
+            const p_nao_doente = 1 - p_doente;
+
+            // 3. Aplica o Teorema de Bayes: P(Doente | Teste +)
+            // Numerador = P(Teste + | Doente) * P(Doente)
+            const numerator = p_teste_pos_dado_doente * p_doente;
+
+            // Denominador (Evidência Total) = P(Teste +)
+            // P(Teste +) = P(Teste + | Doente)*P(Doente) + P(Teste + | Não Doente)*P(Não Doente)
+            const denominator = (p_teste_pos_dado_doente * p_doente) + (p_teste_pos_dado_nao_doente * p_nao_doente);
+
+            // Posterior
+            const posterior = numerator / denominator;
+
+            // 4. Exibe o resultado formatado como porcentagem
+            posteriorResultEl.textContent = `${(posterior * 100).toFixed(1)}%`;
+        }
+
+        // Adiciona "escutadores" de eventos para cada slider.
+        // A função será chamada toda vez que um slider for movido.
+        priorSlider.addEventListener('input', updateBayesCalculation);
+        sensitivitySlider.addEventListener('input', updateBayesCalculation);
+        fprSlider.addEventListener('input', updateBayesCalculation);
+
+        // Chama a função uma vez no início para calcular com os valores padrão
+        updateBayesCalculation();
+    </script>
+</body>
+</html>
