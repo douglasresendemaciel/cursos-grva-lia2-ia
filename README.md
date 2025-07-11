@@ -134,9 +134,11 @@ Nosso curso será dividido em 4 aulas, sendo a última, Aula 5 (prevista no cont
 - Neurônio artificial e MLP (Perceptron Multicamadas).
 - Redes Neurais Convolucionais (CNNs) e suas aplicações em visão computacional.
 - Redes Neurais Recorrentes (RNNs), LSTM e GRU para dados sequenciais.
-- Arquitetura Transformer: BERT, GPT e suas aplicações em processamento de linguagem natural.
+- Usando LLm´s (Large Language Models) como BERT e GPT localmente no seu computador.
 
 **Objetivo:** Introduzir as redes neurais e suas variantes, como CNNs e RNNs, e discutir os modelos de linguagem baseados em Transformer, como BERT e GPT.
+
+**LLM Studio** - Download => [https://lmstudio.ai/](https://lmstudio.ai/) 
 
 ---
 
